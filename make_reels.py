@@ -32,6 +32,13 @@ TRAITS = [
         "What is entitlement?",
         [("They", False), ("think", True), ("they're", False), ("superior", True)],
     ),
+    (
+        "02",
+        "withdraw",
+        "Withdraw",
+        "What is withdraw?",
+        [("No show", True), ("or just", False), ("quiet", True)],
+    ),
 ]
 
 
@@ -118,7 +125,8 @@ def draw(ctx, trait, t):
     PangoCairo.show_layout(ctx, q_lay)
 
     # One word per row, gaps big enough that a pop never hits the word above.
-    starts = [2.6, 3.7, 4.7, 5.6]
+    n_words = len(words)
+    starts = [2.6 + i * (3.0 / max(1, n_words - 1)) for i in range(n_words)]
     sized = []
     for text, key in words:
         size = 150 if key else 96
