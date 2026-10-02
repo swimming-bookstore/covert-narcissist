@@ -22,8 +22,9 @@ OUTDIR = os.path.dirname(os.path.abspath(__file__))
 BG = (0.97, 0.94, 0.90)
 INK = (0.16, 0.11, 0.12)
 ROSE = (0.78, 0.22, 0.30)
+YELLOW = (0.96, 0.76, 0.12)
 
-# num, slug, name, question, answer words (text, keyword)
+# num, slug, name, question, answer words (text, keyword), label
 TRAITS = [
     (
         "01",
@@ -38,6 +39,22 @@ TRAITS = [
         "Withdraw",
         "What is withdraw?",
         [("No show", True), ("or just", False), ("quiet", True)],
+    ),
+    (
+        "03",
+        "triangulation",
+        "Triangulation",
+        "What is triangulation?",
+        [("They pull a", False), ("third", True), ("person in", False)],
+        "TACTIC",
+    ),
+    (
+        "04",
+        "gaslighting",
+        "Gaslighting",
+        "What is gaslighting?",
+        [("They make you", False), ("doubt", True), ("yourself", False)],
+        "TACTIC",
     ),
 ]
 
@@ -111,17 +128,36 @@ def bg(ctx, t):
 
 
 def draw(ctx, trait, t):
-    _num, _slug, _title, question, words = trait
+    _num, _slug, _title, question, words = trait[:5]
+    label = trait[5] if len(trait) > 5 else "TRAIT"
     bg(ctx, t)
 
     k = ease(t / 0.25) if t < 0.25 else 1.0
     ctx.push_group()
-    show(ctx, "COVERT NARCISSIST TRAIT", 0, 150, 34, "bold", ROSE, width=W, align="center")
+    show(ctx, f"COVERT NARCISSIST {label}", 0, 150, 34, "bold", ROSE, width=W, align="center")
 
     # Question stays put. The answer pops in underneath, word by word.
-    q_lay = layout(ctx, question, 84, "bold", 940, "center")
+    q_x, q_y, q_w, q_size = (W - 940) / 2, 430, 940, 84
+    q_lay = layout(ctx, question, q_size, "bold", q_w, "center")
+
+    # Yellow box behind the named word in the question (same idea as answer keywords).
+    named = trait[1]
+    if named and named in question.lower():
+        start = question.lower().index(named)
+        # index_to_pos is the real glyph box; prefix width is not, because of kerning.
+        p0 = q_lay.index_to_pos(start)
+        p1 = q_lay.index_to_pos(start + len(named))
+        ux = q_x + min(p0.x, p1.x) / Pango.SCALE
+        uy = q_y + p0.y / Pango.SCALE
+        ww = abs(p1.x - p0.x) / Pango.SCALE
+        wh = p0.height / Pango.SCALE
+        pad_x, pad_y = 10, 4
+        rgb(ctx, YELLOW, 0.72)
+        round_rect(ctx, ux - pad_x, uy - pad_y, ww + pad_x * 2, wh + pad_y * 2, 16)
+        ctx.fill()
+
     rgb(ctx, INK)
-    ctx.move_to((W - 940) / 2, 430)
+    ctx.move_to(q_x, q_y)
     PangoCairo.show_layout(ctx, q_lay)
 
     # One word per row, gaps big enough that a pop never hits the word above.
@@ -160,6 +196,7 @@ def draw(ctx, trait, t):
 
 def render(trait):
     num, slug = trait[0], trait[1]
+    label = (trait[5] if len(trait) > 5 else "TRAIT").lower()
     tmp = tempfile.mkdtemp(prefix="reel_")
     try:
         n = int(round(DUR * FPS))
@@ -168,7 +205,7 @@ def render(trait):
             ctx = cairo.Context(surface)
             draw(ctx, trait, i / FPS)
             surface.write_to_png(os.path.join(tmp, f"f{i:04d}.png"))
-        out = os.path.join(OUTDIR, f"reel_{num}_{slug}.mp4")
+        out = os.path.join(OUTDIR, f"reel_{num}_{label}_{slug}.mp4")
         subprocess.check_call(
             [
                 "ffmpeg", "-y", "-loglevel", "error",
